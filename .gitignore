@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Downloads (user data)
+backend/downloads/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build output
+frontend/dist/
+
+# Temp files
+*.part
+git_ops.py
+git_result.txt
+do_git.bat
+do_setup.bat
+setup.py
+run_check.py
+frontend/install.cmd
+push_to_github.bat
+push.py
+run_test.bat
+_check_git.py
+_git_info.txt
+_git_out.txt
+_gout.txt
+_test.txt
+backend/test_sub.py
+backend/test_result.txt
