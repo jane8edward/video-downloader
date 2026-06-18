@@ -43,8 +43,14 @@ function App() {
     <div className="min-h-screen bg-gradient-dark">
       <Header />
       <Hero onParse={handleParse} isLoading={isLoading} error={error} />
-      {videoInfo && <VideoResult videoInfo={videoInfo} />}
-      {videoInfo && <AISummary videoInfo={videoInfo} />}
+      {videoInfo && (
+        <section className="relative z-10 px-4 pb-16" id="result">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)] gap-5 items-stretch xl:h-[690px] xl:overflow-hidden">
+            <VideoResult videoInfo={videoInfo} />
+            <AISummary videoInfo={videoInfo} autoStart />
+          </div>
+        </section>
+      )}
       <Platforms />
       <Features />
       <Pricing />

@@ -40,4 +40,25 @@ export const markdownComponents = {
     </code>
   ),
   hr: () => <hr className="border-white/10 my-4" />,
+  table: ({ children }) => (
+    <div className="overflow-x-auto mb-4 rounded-lg border border-white/10">
+      <table className="w-full text-sm text-left text-gray-300">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="text-xs text-gray-200 uppercase bg-white/5">{children}</thead>
+  ),
+  tbody: ({ children }) => <tbody className="divide-y divide-white/5">{children}</tbody>,
+  tr: ({ children }) => (
+    <tr className="hover:bg-white/5 transition-colors">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="px-4 py-2.5 font-semibold text-gray-200">{children}</th>
+  ),
+  td: ({ children }) => (
+    <td className="px-4 py-2.5">{children}</td>
+  ),
+  a: ({ children, href }) => (
+    <a href={href} className="text-purple-400 hover:text-purple-300 underline" target="_blank" rel="noopener noreferrer">{children}</a>
+  ),
 }

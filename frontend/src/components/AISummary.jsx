@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Brain,
   Loader2,
@@ -47,8 +47,18 @@ function parseResponse(text) {
   return sections
 }
 
-export default function AISummary({ videoInfo }) {
-  const [showPanel, setShowPanel] = useState(false)
+function normalizeMarkdown(text) {
+  return text
+    .replace(/^#{1,6}\s*SUMMARY\s*$/gim, '')
+    .replace(/^#{1,6}\s*OUTLINE\s*$/gim, '')
+    .replace(/^#{1,6}\s*MINDMAP\s*$/gim, '')
+    .replace(/^(#{1,6})([^\s#])/gm, '$1 $2')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+export default function AISummary({ videoInfo, autoStart = false }) {
+  const [showPanel, setShowPanel] = useState(autoStart)
   const [activeTab, setActiveTab] = useState('summary')
   const [isExtracting, setIsExtracting] = useState(false)
   const [isSummarizing, setIsSummarizing] = useState(false)
@@ -59,10 +69,28 @@ export default function AISummary({ videoInfo }) {
   const [error, setError] = useState('')
   const [hasSummarized, setHasSummarized] = useState(false)
   const fullResponseRef = useRef('')
+  const startedUrlRef = useRef('')
 
-  const handleStartSummary = useCallback(async () => {
+  const resetSummaryState = useCallback(() => {
+    fullResponseRef.current = ''
+    setActiveTab('summary')
+    setIsExtracting(false)
+    setIsSummarizing(false)
+    setSubtitleData(null)
+    setSummaryContent('')
+    setOutlineContent('')
+    setMindmapContent('')
+    setError('')
+    setHasSummarized(false)
+  }, [])
+
+  const handleStartSummary = useCallback(async ({ force = false } = {}) => {
     // If already summarized, just toggle the panel
-    if (hasSummarized) {
+    if (hasSummarized && !force) {
+      setShowPanel(true)
+      return
+    }
+    if ((isExtracting || isSummarizing) && !force) {
       setShowPanel(true)
       return
     }
@@ -139,8 +167,8 @@ export default function AISummary({ videoInfo }) {
               if (data.content) {
                 fullResponseRef.current += data.content
                 const sections = parseResponse(fullResponseRef.current)
-                setSummaryContent(sections.summary)
-                setOutlineContent(sections.outline)
+                setSummaryContent(normalizeMarkdown(sections.summary))
+                setOutlineContent(normalizeMarkdown(sections.outline))
                 setMindmapContent(sections.mindmap)
               }
             } catch (e) {
@@ -160,13 +188,28 @@ export default function AISummary({ videoInfo }) {
       setIsExtracting(false)
       setIsSummarizing(false)
     }
-  }, [videoInfo, hasSummarized])
+  }, [videoInfo, hasSummarized, isExtracting, isSummarizing])
+
+  useEffect(() => {
+    if (!videoInfo?.webpage_url) return
+
+    startedUrlRef.current = ''
+    setShowPanel(autoStart)
+    resetSummaryState()
+  }, [videoInfo?.webpage_url, autoStart, resetSummaryState])
+
+  useEffect(() => {
+    const url = videoInfo?.webpage_url
+    if (!autoStart || !url || startedUrlRef.current === url) return
+
+    startedUrlRef.current = url
+    handleStartSummary({ force: true })
+  }, [autoStart, videoInfo?.webpage_url, handleStartSummary])
 
   if (!videoInfo) return null
 
   return (
-    <section className="relative px-4 pb-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-w-0 h-full min-h-0">
         {/* ── Trigger Button ── */}
         {!showPanel && (
           <button
@@ -182,10 +225,10 @@ export default function AISummary({ videoInfo }) {
 
         {/* ── AI Panel ── */}
         {showPanel && (
-          <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="glass-card rounded-2xl overflow-hidden h-full min-h-0 flex flex-col">
             {/* Panel Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-3 px-5 py-3 border-b border-white/5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Brain className="w-5 h-5 text-purple-400" />
                 <span className="text-sm font-semibold text-white">
                   AI 智能总结
@@ -196,12 +239,14 @@ export default function AISummary({ videoInfo }) {
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => setShowPanel(false)}
-                className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
-              >
-                <ChevronUp className="w-4 h-4" />
-              </button>
+              {!autoStart && (
+                <button
+                  onClick={() => setShowPanel(false)}
+                  className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Tabs */}
@@ -226,7 +271,7 @@ export default function AISummary({ videoInfo }) {
             </div>
 
             {/* Tab Content */}
-            <div className="p-5 min-h-[300px]">
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
               {/* Loading: extracting subtitles */}
               {isExtracting && (
                 <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -246,9 +291,9 @@ export default function AISummary({ videoInfo }) {
                     <p className="whitespace-pre-line">{error}</p>
                     <button
                       onClick={() => {
-                        setError('')
-                        setHasSummarized(false)
-                        setShowPanel(false)
+                        startedUrlRef.current = videoInfo?.webpage_url || ''
+                        resetSummaryState()
+                        handleStartSummary({ force: true })
                       }}
                       className="mt-2 text-xs text-purple-400 hover:text-purple-300 underline"
                     >
@@ -291,7 +336,6 @@ export default function AISummary({ videoInfo }) {
             </div>
           </div>
         )}
-      </div>
-    </section>
+    </div>
   )
 }
