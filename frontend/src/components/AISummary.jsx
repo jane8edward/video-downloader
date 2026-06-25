@@ -24,34 +24,79 @@ const TABS = [
   { id: 'chat', label: 'AI 对话', icon: MessageSquare },
 ]
 
-/**
- * Parse the LLM response text into three sections:
- * SUMMARY, OUTLINE, MINDMAP — delimited by ===SECTION=== markers.
- */
-function parseResponse(text) {
+const SECTION_MARKER_RE = /^\s*(?:#{1,6}\s*)?(?:={2,}\s*)?(SUMMARY|OUTLINE|MINDMAP|摘要|大纲|章节大纲|思维导图)(?:\s*={2,})?\s*$/i
+
+function normalizeSectionName(name) {
+  const upper = name.toUpperCase()
+  if (upper === 'SUMMARY' || name === '摘要') return 'summary'
+  if (upper === 'OUTLINE' || name === '大纲' || name === '章节大纲') return 'outline'
+  if (upper === 'MINDMAP' || name === '思维导图') return 'mindmap'
+  return ''
+}
+
+function parseResponseByLines(text) {
   const sections = { summary: '', outline: '', mindmap: '' }
+  let current = ''
 
-  const summaryMatch = text.match(/===SUMMARY===([\s\S]*?)(?====OUTLINE===|$)/)
-  const outlineMatch = text.match(/===OUTLINE===([\s\S]*?)(?====MINDMAP===|$)/)
-  const mindmapMatch = text.match(/===MINDMAP===([\s\S]*?)$/)
+  text.split(/\r?\n/).forEach((line) => {
+    const marker = line.match(SECTION_MARKER_RE)
+    if (marker) {
+      current = normalizeSectionName(marker[1])
+      return
+    }
 
-  if (summaryMatch) sections.summary = summaryMatch[1].trim()
-  if (outlineMatch) sections.outline = outlineMatch[1].trim()
+    if (current) {
+      sections[current] += `${line}\n`
+    }
+  })
+
+  Object.keys(sections).forEach((key) => {
+    sections[key] = sections[key].trim()
+  })
+
+  return sections
+}
+
+function stripMindmapFences(mindmap) {
+  let mm = mindmap.trim()
+  mm = mm.replace(/^```(?:markdown|md)?\n?/, '').replace(/\n?```\s*$/, '')
+  return mm.trim()
+}
+
+function parseResponse(text) {
+  const sections = parseResponseByLines(text)
+
+  const summaryMatch = text.match(/===\s*SUMMARY\s*===([\s\S]*?)(?====\s*OUTLINE\s*===|===\s*MINDMAP\s*===|$)/i)
+  const outlineMatch = text.match(/===\s*OUTLINE\s*===([\s\S]*?)(?====\s*MINDMAP\s*===|$)/i)
+  const mindmapMatch = text.match(/===\s*MINDMAP\s*===([\s\S]*?)$/i)
+
+  if (!sections.summary && summaryMatch) sections.summary = summaryMatch[1].trim()
+  if (!sections.outline && outlineMatch) sections.outline = outlineMatch[1].trim()
   if (mindmapMatch) {
-    let mm = mindmapMatch[1].trim()
-    // Strip markdown code fences if LLM wraps them
-    mm = mm.replace(/^```(?:markdown|md)?\n?/, '').replace(/\n?```\s*$/, '')
-    sections.mindmap = mm.trim()
+    sections.mindmap = mindmapMatch[1].trim()
+  }
+
+  if (sections.mindmap) {
+    sections.mindmap = stripMindmapFences(sections.mindmap)
   }
 
   return sections
 }
 
+function buildSummaryFallback(text) {
+  const beforeOutline = text.split(/^\s*(?:#{1,6}\s*)?(?:={2,}\s*)?(?:OUTLINE|大纲|章节大纲)(?:\s*={2,})?\s*$/im)[0] || text
+  const beforeMindmap = beforeOutline.split(/^\s*(?:#{1,6}\s*)?(?:={2,}\s*)?(?:MINDMAP|思维导图)(?:\s*={2,})?\s*$/im)[0] || beforeOutline
+
+  return normalizeMarkdown(beforeMindmap)
+}
+
 function normalizeMarkdown(text) {
   return text
+    .replace(/^\s*(?:#{1,6}\s*)?={2,}\s*(SUMMARY|OUTLINE|MINDMAP|摘要|大纲|章节大纲|思维导图)\s*={2,}\s*$/gim, '')
     .replace(/^#{1,6}\s*SUMMARY\s*$/gim, '')
     .replace(/^#{1,6}\s*OUTLINE\s*$/gim, '')
     .replace(/^#{1,6}\s*MINDMAP\s*$/gim, '')
+    .replace(/^#{1,6}\s*(摘要|大纲|章节大纲|思维导图)\s*$/gim, '')
     .replace(/^(#{1,6})([^\s#])/gm, '$1 $2')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
@@ -181,6 +226,14 @@ export default function AISummary({ videoInfo, autoStart = false }) {
         }
       }
 
+      const finalSections = parseResponse(fullResponseRef.current)
+      const finalSummary = normalizeMarkdown(finalSections.summary) || buildSummaryFallback(fullResponseRef.current)
+      const finalOutline = normalizeMarkdown(finalSections.outline)
+      const finalMindmap = finalSections.mindmap
+
+      setSummaryContent(finalSummary)
+      if (finalOutline) setOutlineContent(finalOutline)
+      if (finalMindmap) setMindmapContent(finalMindmap)
       setIsSummarizing(false)
       setHasSummarized(true)
     } catch (err) {
@@ -310,6 +363,11 @@ export default function AISummary({ videoInfo, autoStart = false }) {
                     <SummaryTab
                       content={summaryContent}
                       isLoading={isSummarizing}
+                      onRetry={() => {
+                        startedUrlRef.current = videoInfo?.webpage_url || ''
+                        resetSummaryState()
+                        handleStartSummary({ force: true })
+                      }}
                     />
                   )}
                   {activeTab === 'outline' && (

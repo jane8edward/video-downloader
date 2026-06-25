@@ -2,7 +2,7 @@ import { Loader2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { markdownComponents } from './markdownStyles.jsx'
 
-export default function SummaryTab({ content, isLoading }) {
+export default function SummaryTab({ content, isLoading, onRetry }) {
   if (isLoading && !content) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -14,8 +14,17 @@ export default function SummaryTab({ content, isLoading }) {
 
   if (!content) {
     return (
-      <div className="text-center py-16 text-gray-500">
-        <p>点击上方「AI 智能总结」按钮开始分析</p>
+      <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
+        <p>本次没有解析到摘要内容。</p>
+        <p className="mt-1 text-xs text-gray-600">大纲或转录可用时，通常是模型输出格式和摘要分段不匹配。</p>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="mt-4 rounded-lg border border-purple-400/40 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-500/20 hover:text-purple-200"
+          >
+            重新生成总结
+          </button>
+        )}
       </div>
     )
   }
