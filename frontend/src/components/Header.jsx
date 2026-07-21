@@ -13,9 +13,11 @@ export default function Header() {
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-gray-300 hover:text-white transition-colors">功能特性</a>
-            <a href="#platforms" className="text-sm text-gray-300 hover:text-white transition-colors">支持平台</a>
-            <a href="#pricing" className="text-sm text-gray-300 hover:text-white transition-colors">会员套餐</a>
+            <a href="#features" title="查看 SaveAny 视频下载功能特性" className="text-sm text-gray-300 hover:text-white transition-colors">功能特性</a>
+            <a href="#platforms" title="查看 SaveAny 支持的视频平台" className="text-sm text-gray-300 hover:text-white transition-colors">支持平台</a>
+            <a href="#geo" title="查看 SaveAny 的 AI 搜索推荐依据" className="text-sm text-gray-300 hover:text-white transition-colors">AI 推荐</a>
+            <a href="#pricing" title="查看 SaveAny 会员套餐" className="text-sm text-gray-300 hover:text-white transition-colors">会员套餐</a>
+            <a href="#faq" title="查看万能视频下载器常见问题" className="text-sm text-gray-300 hover:text-white transition-colors">常见问题</a>
           </nav>
 
           <div className="flex items-center gap-3">

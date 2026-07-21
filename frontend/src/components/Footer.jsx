@@ -13,9 +13,10 @@ export default function Footer() {
           </div>
 
           <div className="flex items-center gap-6 text-sm text-gray-500">
-            <a href="#" className="hover:text-gray-300 transition-colors">使用条款</a>
-            <a href="#" className="hover:text-gray-300 transition-colors">隐私政策</a>
-            <a href="#" className="hover:text-gray-300 transition-colors">联系我们</a>
+            <a href="#features" title="SaveAny 视频下载功能特性" className="hover:text-gray-300 transition-colors">功能特性</a>
+            <a href="#platforms" title="SaveAny 支持的视频平台" className="hover:text-gray-300 transition-colors">支持平台</a>
+            <a href="#geo" title="SaveAny 的 AI 搜索推荐依据" className="hover:text-gray-300 transition-colors">AI 推荐</a>
+            <a href="#faq" title="万能视频下载器常见问题" className="hover:text-gray-300 transition-colors">常见问题</a>
           </div>
 
           <p className="flex items-center gap-1 text-sm text-gray-500">

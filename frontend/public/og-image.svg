@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">SaveAny 万能视频下载器</title>
+  <desc id="desc">支持 1000+ 平台的在线视频下载和 AI 视频总结工具</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F0B1E"/>
+      <stop offset="0.48" stop-color="#1A1145"/>
+      <stop offset="1" stop-color="#082F49"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="250" y1="130" x2="960" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="0.55" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <path d="M0 500 C180 420 260 540 430 470 C640 385 780 460 970 365 C1080 310 1140 320 1200 290 L1200 630 L0 630 Z" fill="#2563EB" opacity="0.16"/>
+  <g opacity="0.16">
+    <path d="M120 120H1080" stroke="#FFFFFF"/>
+    <path d="M120 220H1080" stroke="#FFFFFF"/>
+    <path d="M120 320H1080" stroke="#FFFFFF"/>
+    <path d="M120 420H1080" stroke="#FFFFFF"/>
+    <path d="M120 520H1080" stroke="#FFFFFF"/>
+    <path d="M180 80V560" stroke="#FFFFFF"/>
+    <path d="M380 80V560" stroke="#FFFFFF"/>
+    <path d="M580 80V560" stroke="#FFFFFF"/>
+    <path d="M780 80V560" stroke="#FFFFFF"/>
+    <path d="M980 80V560" stroke="#FFFFFF"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <rect x="96" y="92" width="1008" height="446" rx="32" fill="#FFFFFF" fill-opacity="0.06" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <g transform="translate(154 154)">
+      <rect width="92" height="92" rx="22" fill="url(#brand)"/>
+      <rect x="22" y="29" width="45" height="35" rx="7" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+      <path d="M67 38l13-8v34l-13-8V38z" fill="#FFFFFF"/>
+    </g>
+    <text x="154" y="310" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="74" font-weight="800">SaveAny 万能视频下载器</text>
+    <text x="154" y="380" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="500">1000+ 视频平台 · 多画质下载 · 字幕提取 · AI 视频总结</text>
+    <g transform="translate(154 430)">
+      <rect width="170" height="48" rx="24" fill="#8B5CF6" fill-opacity="0.18" stroke="#C4B5FD" stroke-opacity="0.38"/>
+      <text x="32" y="32" fill="#E9D5FF" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">免费体验</text>
+      <rect x="196" width="198" height="48" rx="24" fill="#3B82F6" fill-opacity="0.16" stroke="#93C5FD" stroke-opacity="0.35"/>
+      <text x="228" y="32" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">无需安装插件</text>
+      <rect x="420" width="186" height="48" rx="24" fill="#06B6D4" fill-opacity="0.15" stroke="#67E8F9" stroke-opacity="0.32"/>
+      <text x="452" y="32" fill="#CFFAFE" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">手机可用</text>
+    </g>
+  </g>
+</svg>

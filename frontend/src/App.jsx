@@ -5,6 +5,8 @@ import VideoResult from './components/VideoResult'
 import Platforms from './components/Platforms'
 import Features from './components/Features'
 import Pricing from './components/Pricing'
+import AIVisibility from './components/AIVisibility'
+import FAQ from './components/FAQ'
 import Footer from './components/Footer'
 import AISummary from './components/AISummary'
 
@@ -53,7 +55,9 @@ function App() {
       )}
       <Platforms />
       <Features />
+      <AIVisibility />
       <Pricing />
+      <FAQ />
       <Footer />
     </div>
   )

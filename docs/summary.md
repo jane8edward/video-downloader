@@ -18,6 +18,8 @@ SaveAny 是一个基于 Web 的万能视频下载工具，支持 1000+ 视频平
 | B站字幕提取 | ✅ 已完成 | dm/view API 直接提取 CC/AI 字幕 |
 | 解析与总结同屏 | ✅ 已完成 | 左侧视频下载、右侧 AI 总结，解析后自动总结 |
 | 转录/脑图导出 | ✅ 已完成 | 转录支持 SRT/TXT，脑图支持 PNG/SVG 与全屏 |
+| SEO 基础优化 | ✅ 已完成 | TDK、OG/Twitter、canonical、robots、sitemap、FAQ 结构化数据 |
+| GEO/AI 搜索优化 | ✅ 已完成 | AI 事实区、llms.txt、llms-full.txt、ai-context.json、AI crawler 友好配置 |
 
 ---
 
@@ -61,6 +63,7 @@ SaveAny 是一个基于 Web 的万能视频下载工具，支持 1000+ 视频平
 | 图标 | Lucide React | 最新 | SVG 图标 |
 | Markdown 渲染 | react-markdown | 最新 | AI 输出渲染 |
 | 思维导图 | markmap | 最新 | Markdown → 脑图 |
+| SEO/GEO | Vite 构建插件 + 预渲染 | - | 静态 HTML、结构化数据、AI 可读上下文 |
 | 后端框架 | FastAPI | 0.115.x | 异步 Web API |
 | ASGI 服务器 | uvicorn | 0.30.x | 生产级服务 |
 | 下载引擎 | yt-dlp | ≥2024.8.6 | 1000+ 平台 |
@@ -142,6 +145,28 @@ SaveAny 是一个基于 Web 的万能视频下载工具，支持 1000+ 视频平
 - **固定高度策略**：桌面端结果区固定高度，左右卡片等高；摘要、转录、大纲等长内容只在右侧内容区内部滚动，避免生成过程中撑开页面并遮挡下方内容。
 - **Markdown 兼容处理**：前端会清洗 LLM 输出中的 `##SUMMARY`、无空格标题等异常格式，保证 `react-markdown` 正确渲染标题、列表、加粗和引用。
 
+### 3.6 SEO 与 GEO 优化模块
+
+SEO/GEO 优化集中在前端构建层和首页公开内容层，目标是让搜索引擎、AI 搜索和 AI 对话系统更容易抓取、理解并引用 SaveAny 的准确信息。
+
+**核心实现**：
+
+- `frontend/src/seo/metadata.js` 统一维护 TDK、关键词、FAQ、产品实体、AI 推荐短答案、适用场景和可信信号。
+- `frontend/vite.config.js` 在构建期注入 meta、Open Graph、Twitter Card、canonical、robots、JSON-LD，并生成 `robots.txt`、`llms.txt`、`llms-full.txt`、`ai-context.json`；设置 `VITE_SITE_URL` 后生成 `sitemap.xml`。
+- `frontend/src/entry-server.jsx` + `frontend/scripts/prerender.mjs` 在生产构建后把首页 React 内容预渲染进 `dist/index.html`，降低 SPA 对搜索引擎 JavaScript 渲染能力的依赖。
+- `FAQ.jsx` 输出面向搜索意图的常见问题内容，并与 `FAQPage` JSON-LD 保持一致。
+- `AIVisibility.jsx` 输出 `#geo` 区块，给 AI 搜索提供事实型短答案、产品定位、适用人群和可信信号。
+
+**上线要求**：
+
+生产环境需要设置：
+
+```bash
+VITE_SITE_URL=https://your-domain.com
+```
+
+该变量用于生成 canonical、社交分享绝对图片地址、sitemap、`llms.txt` 和 `ai-context.json` 中的规范 URL。
+
 ---
 
 ## 四、API 接口总览
@@ -174,12 +199,17 @@ video-downloader/
 ├── docs/
 │   ├── requirements.md        # 需求分析文档
 │   ├── design.md              # 技术方案设计文档
+│   ├── seo-tdk.md             # SEO TDK 管理表
+│   ├── geo.md                 # GEO 优化说明
 │   └── summary.md             # 项目总结文档（本文档）
 ├── frontend/
 │   ├── src/
 │   │   ├── main.jsx           # 应用入口
+│   │   ├── entry-server.jsx   # 首页预渲染入口
 │   │   ├── App.jsx            # 根组件（路由 + 状态管理）
 │   │   ├── index.css          # 全局样式 + 动画
+│   │   ├── seo/
+│   │   │   └── metadata.js    # SEO/GEO 元数据、结构化数据、AI 上下文生成
 │   │   └── components/
 │   │       ├── Header.jsx     # 导航栏
 │   │       ├── Hero.jsx       # 首页搜索区
@@ -193,11 +223,19 @@ video-downloader/
 │   │       ├── markdownStyles.jsx # Markdown 渲染样式
 │   │       ├── Platforms.jsx  # 支持平台展示
 │   │       ├── Features.jsx   # 功能特性展示
+│   │       ├── AIVisibility.jsx # GEO/AI 搜索事实区
+│   │       ├── FAQ.jsx        # 常见问题内容
 │   │       ├── Pricing.jsx    # 定价方案
 │   │       └── Footer.jsx     # 页脚
+│   ├── scripts/
+│   │   └── prerender.mjs      # 生产构建后预渲染首页 HTML
+│   ├── public/
+│   │   ├── favicon.svg        # 网站图标
+│   │   ├── og-image.png       # 社交分享图
+│   │   └── og-image.svg       # 分享图源文件
 │   ├── index.html
 │   ├── package.json
-│   ├── vite.config.js         # Vite 配置（含 API 代理）
+│   ├── vite.config.js         # Vite 配置（API 代理 + SEO/GEO 构建资产）
 │   ├── tailwind.config.js     # Tailwind 主题扩展
 │   └── postcss.config.js
 ├── backend/
@@ -304,3 +342,5 @@ video-downloader/
 - [ ] AI 摘要结果缓存（相同视频不重复调用 LLM）
 - [ ] 前端错误边界组件（更优雅的异常处理）
 - [ ] 移动端适配优化
+- [ ] 接入 Google Search Console、Bing Webmaster Tools、百度搜索资源平台并提交 sitemap
+- [ ] 上线后使用 Rich Results Test / Schema Validator 校验结构化数据

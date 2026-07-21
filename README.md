@@ -27,6 +27,14 @@
 - **Markdown 优化** — 自动清洗 LLM 输出中的异常标题标记，提升摘要、大纲的可读性
 - **摘要兜底恢复** — 兼容 `===SUMMARY===`、`=== SUMMARY ===`、`## SUMMARY`、中文分段标题等 LLM 输出变体；摘要分段为空时自动从完整响应提取兜底摘要，并提供重新生成入口
 
+### SEO / GEO 优化
+
+- **静态可抓取首页** — 生产构建会预渲染首页 HTML，让搜索引擎和 AI 搜索系统不依赖 JavaScript 也能读取核心内容
+- **完整 TDK 与社交分享** — 构建期注入 Title、Description、Keywords、Open Graph、Twitter Card、Canonical 和品牌分享图
+- **结构化数据** — 输出 `WebSite`、`WebPage`、`SoftwareApplication`、`Organization`、`FAQPage` JSON-LD
+- **GEO 内容入口** — 首页包含 `#geo` AI 可引用事实区，提供产品定位、可信信号、适用场景和推荐短答案
+- **AI 可读资源** — 构建自动生成 `/llms.txt`、`/llms-full.txt`、`/ai-context.json`、`/robots.txt`，设置正式域名后额外生成 `/sitemap.xml`
+
 ## 技术架构
 
 ```
@@ -72,6 +80,19 @@ npm run dev
 
 访问 http://localhost:3000
 
+### 生产构建与搜索配置
+
+```bash
+cd frontend
+npm run build
+```
+
+正式上线前请设置站点域名，生成 canonical、OG 绝对图片地址、sitemap 和 AI 可读资源中的规范 URL：
+
+```bash
+VITE_SITE_URL=https://your-domain.com
+```
+
 ## 技术栈
 
 | 层级     | 技术                     | 说明                 |
@@ -87,6 +108,7 @@ npm run dev
 | AI LLM   | DeepSeek Chat            | 摘要/对话生成        |
 | 字幕提取 | B站 dm/view API + yt-dlp | 多平台字幕获取       |
 | 进度推送 | SSE (Server-Sent Events) | 实时进度/流式输出    |
+| SEO/GEO | 预渲染 + JSON-LD + llms.txt | 搜索引擎和 AI 搜索可见性 |
 
 ## API 接口
 
@@ -130,7 +152,10 @@ video-downloader/
 │   ├── src/
 │   │   ├── App.jsx           # 根组件
 │   │   ├── main.jsx          # 入口文件
+│   │   ├── entry-server.jsx  # 首页预渲染入口
 │   │   ├── index.css         # 全局样式
+│   │   ├── seo/
+│   │   │   └── metadata.js   # SEO/GEO 元数据与结构化数据生成
 │   │   └── components/
 │   │       ├── Header.jsx    # 导航栏
 │   │       ├── Hero.jsx      # 首页搜索区
@@ -144,15 +169,25 @@ video-downloader/
 │   │       ├── markdownStyles.jsx # Markdown 渲染样式
 │   │       ├── Platforms.jsx     # 支持平台展示
 │   │       ├── Features.jsx      # 功能特性
+│   │       ├── AIVisibility.jsx  # GEO/AI 搜索事实区
+│   │       ├── FAQ.jsx           # FAQ 内容与 FAQPage 对齐
 │   │       ├── Pricing.jsx       # 定价方案
 │   │       └── Footer.jsx        # 页脚
+│   ├── scripts/
+│   │   └── prerender.mjs     # 构建后首页预渲染脚本
+│   ├── public/
+│   │   ├── favicon.svg       # 网站图标
+│   │   ├── og-image.png      # 1200x630 社交分享图
+│   │   └── og-image.svg      # 分享图可编辑源
 │   ├── index.html
-│   ├── vite.config.js        # Vite 配置（含 API 代理）
+│   ├── vite.config.js        # Vite 配置（API 代理 + SEO/GEO 构建资产）
 │   ├── tailwind.config.js    # Tailwind 主题扩展
 │   └── package.json
 ├── docs/
 │   ├── requirements.md       # 需求文档
 │   ├── design.md             # 技术设计文档
+│   ├── seo-tdk.md            # SEO TDK 管理表
+│   ├── geo.md                # GEO 优化说明
 │   └── summary.md            # 项目总结文档
 ├── start.bat                 # Windows 一键启动
 ├── .gitignore
@@ -180,6 +215,7 @@ video-downloader/
 - [x] 字幕提取（B站 + YouTube + 通用平台）
 - [x] AI 对话（基于视频内容多轮问答）
 - [x] 思维导图可视化
+- [x] SEO/GEO 基础优化（预渲染、结构化数据、llms.txt、AI 上下文）
 - [ ] Whisper 语音转文字（无字幕视频兜底）
 - [ ] 字幕自动翻译
 - [ ] 批量下载（多 URL 队列）
