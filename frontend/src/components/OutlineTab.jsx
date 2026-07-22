@@ -1,8 +1,11 @@
 import { Loader2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { markdownComponents } from './markdownStyles.jsx'
+import { sanitizeAiMarkdown } from './aiTextSanitizer.js'
 
 export default function OutlineTab({ content, isLoading }) {
+  const displayContent = sanitizeAiMarkdown(content)
+
   if (isLoading && !content) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -12,7 +15,7 @@ export default function OutlineTab({ content, isLoading }) {
     )
   }
 
-  if (!content) {
+  if (!displayContent) {
     return (
       <div className="text-center py-16 text-gray-500">
         <p>等待 AI 分析完成后展示章节大纲</p>
@@ -22,7 +25,7 @@ export default function OutlineTab({ content, isLoading }) {
 
   return (
     <div className="ai-markdown">
-      <Markdown components={markdownComponents}>{content}</Markdown>
+      <Markdown components={markdownComponents}>{displayContent}</Markdown>
       {isLoading && (
         <span className="inline-block w-2 h-5 bg-purple-400 animate-pulse ml-1 align-middle rounded-sm" />
       )}

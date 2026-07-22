@@ -17,6 +17,9 @@ from pydantic import BaseModel
 from yt_dlp import YoutubeDL
 from douyin_parser import is_douyin_url, parse_douyin
 from ai_routes import router as ai_router
+from auth_routes import router as auth_router
+from auth_store import init_db
+from billing_routes import router as billing_router
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -38,6 +41,10 @@ app.add_middleware(
 )
 
 app.include_router(ai_router)
+app.include_router(auth_router)
+app.include_router(billing_router)
+
+init_db()
 
 DOWNLOAD_DIR = Path(__file__).parent / "downloads"
 DOWNLOAD_DIR.mkdir(exist_ok=True)

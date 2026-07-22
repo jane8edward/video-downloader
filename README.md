@@ -1,228 +1,187 @@
-# SaveAny - 万能视频下载器
+# SaveAny 万能视频下载器
 
-支持 1000+ 视频平台的在线视频下载工具，集成 AI 智能视频分析，包含抖音专用无水印下载。
+SaveAny 是一个 Web 版万能视频下载器，核心能力是“粘贴链接 -> 解析视频 -> 选择画质 -> 下载文件”，并集成 AI 视频总结、章节大纲、转录文本、思维导图和视频问答能力。
 
-## 功能特性
+项目采用前后端分离架构：
+
+- Frontend: React 18 + Vite 5 + TailwindCSS
+- Backend: Python FastAPI + yt-dlp + DeepSeek API
+- Billing: Stripe Checkout 一次性支付
+- Storage: SQLite 本地持久化用户、会员、支付和 AI 免费次数
+
+## 已完成功能
 
 ### 视频下载
 
-- **1000+ 平台支持** — 基于 yt-dlp，覆盖 YouTube、Bilibili、Twitter/X 等主流平台
-- **抖音无水印下载** — 专用解析模块，无需登录/Cookie，直接获取无水印视频
-- **多画质选择栏** — 自动识别可用清晰度，使用常驻选择栏展示格式，支持最佳画质、指定分辨率、仅音频
-- **实时进度** — SSE 推送下载进度，前端实时展示进度条
+- 支持 1000+ 视频平台，核心下载能力基于 yt-dlp。
+- 支持 YouTube、Bilibili、抖音、TikTok、Twitter/X 等主流平台。
+- 抖音提供专用无水印解析逻辑。
+- 支持画质选择、封面代理、下载进度 SSE 推送。
+- 免费用户不限制下载功能。
 
-### AI 智能分析
+### AI 视频分析
 
-- **字幕提取** — 自动提取平台字幕（B站 CC 字幕、YouTube 字幕等）
-- **AI 视频摘要** — 解析完成后自动提取字幕并由 DeepSeek 大模型流式生成结构化 Markdown 摘要
-- **章节大纲** — 按视频内容逻辑自动拆分章节
-- **思维导图** — markmap 可视化渲染视频知识结构，支持全屏查看与 PNG/SVG 导出
-- **转录文本** — 带时间戳的字幕段落展示，支持 SRT/TXT 下载
-- **AI 对话** — 基于视频内容的多轮智能问答
+- 自动提取视频字幕或转录文本。
+- 基于 DeepSeek 流式生成 AI 摘要。
+- 生成章节大纲、转录文本、思维导图。
+- VIP 用户可使用视频 AI 对话。
+- AI 输出经过 Markdown 清洗，避免展示 `===SUMMARY===`、残缺 `**`、异常 `###` 等脏格式。
 
-### 同屏结果体验
+### 用户与会员
 
-- **解析与总结同屏** — 解析成功后左侧展示视频信息与下载操作，右侧自动展示 AI 总结面板
-- **固定高度双栏** — 桌面端结果区固定高度，左右卡片等高，摘要/转录/大纲内容在卡片内部滚动
-- **Markdown 优化** — 自动清洗 LLM 输出中的异常标题标记，提升摘要、大纲的可读性
-- **摘要兜底恢复** — 兼容 `===SUMMARY===`、`=== SUMMARY ===`、`## SUMMARY`、中文分段标题等 LLM 输出变体；摘要分段为空时自动从完整响应提取兜底摘要，并提供重新生成入口
+- 支持邮箱注册、登录、退出登录。
+- 使用 HttpOnly Cookie 保存登录态。
+- 密码使用 PBKDF2 哈希保存。
+- Header 显示免费/VIP 铭牌、会员到期时间和退出登录入口。
+- VIP 用户隐藏“开通会员”按钮。
 
-### SEO / GEO 优化
+### 会员支付
 
-- **静态可抓取首页** — 生产构建会预渲染首页 HTML，让搜索引擎和 AI 搜索系统不依赖 JavaScript 也能读取核心内容
-- **完整 TDK 与社交分享** — 构建期注入 Title、Description、Keywords、Open Graph、Twitter Card、Canonical 和品牌分享图
-- **结构化数据** — 输出 `WebSite`、`WebPage`、`SoftwareApplication`、`Organization`、`FAQPage` JSON-LD
-- **GEO 内容入口** — 首页包含 `#geo` AI 可引用事实区，提供产品定位、可信信号、适用场景和推荐短答案
-- **AI 可读资源** — 构建自动生成 `/llms.txt`、`/llms-full.txt`、`/ai-context.json`、`/robots.txt`，设置正式域名后额外生成 `/sitemap.xml`
+- 使用 Stripe Checkout `payment` 模式，一次性支付，不自动续费。
+- 月度会员：CNY 9.90，开通 30 天。
+- 年度会员：CNY 68.00，开通 365 天。
+- 会员未过期时再次购买，会从当前到期时间继续累加。
+- Webhook 校验 Stripe 签名，并按 Stripe event id 幂等处理。
+- Checkout Session 支持本地记录和支付成功同步兜底。
 
-## 技术架构
+### 免费权益
 
-```
-用户浏览器 → Frontend (React + Vite + TailwindCSS, :3000)
-                │ /api/* 代理
-                ▼
-            Backend (Python FastAPI, :8000)
-                │
-          ┌─────┼──────────┐
-          ▼     ▼          ▼
-       yt-dlp  抖音解析器  AI 服务
-       通用引擎 (httpx)    (DeepSeek)
-       1000+平台           字幕提取 + 流式总结 + 对话
-```
+- 免费用户每天可使用 AI 总结 3 次。
+- 免费次数只限制 AI 总结，不限制视频下载。
+- 点击 AI 总结并真正进入生成阶段时预扣 1 次。
+- 字幕提取失败不会扣次数。
+- AI 生成失败会回滚本次预扣。
+- 同一个视频重复请求不会重复扣次数。
 
-## 快速启动
+### SEO / GEO
 
-### 方式一：一键启动（Windows）
+- 构建时生成 TDK、Open Graph、Twitter Card、canonical、JSON-LD。
+- 生成 `robots.txt`、`llms.txt`、`llms-full.txt`、`ai-context.json`。
+- 支持首页预渲染，提升搜索引擎和 AI 搜索可读性。
 
-```bash
-start.bat
-```
+## 本地启动
 
-### 方式二：手动启动
+### 1. 后端
 
 ```bash
-# 1. 安装后端依赖
 cd backend
 pip install -r requirements.txt
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
-# 2. 安装前端依赖
-cd ../frontend
-npm install
+### 2. 前端
 
-# 3. 启动后端 (端口 8000)
-cd ../backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
-
-# 4. 新终端，启动前端 (端口 3000)
+```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-访问 http://localhost:3000
+访问：
 
-### 生产构建与搜索配置
+```text
+http://localhost:3000
+```
+
+## 环境变量
+
+在 `backend/.env` 中配置：
 
 ```bash
+DEEPSEEK_API_KEY=your_deepseek_key
+
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_PRICE_MONTHLY=price_xxx
+STRIPE_PRICE_YEARLY=price_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+FRONTEND_URL=http://localhost:3000
+```
+
+重要提醒：
+
+- 不要提交 `backend/.env`。
+- Stripe Secret Key 只能放后端，不能写进前端。
+- `STRIPE_PRICE_MONTHLY` 和 `STRIPE_PRICE_YEARLY` 必须填 Stripe Price ID，不是 Product ID。
+
+## Stripe 本地测试
+
+启动 Stripe CLI：
+
+```bash
+stripe login
+stripe listen --forward-to localhost:8000/api/billing/webhook
+```
+
+复制输出的 webhook secret：
+
+```text
+Ready! Your webhook signing secret is whsec_xxx
+```
+
+写入 `backend/.env`：
+
+```bash
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+```
+
+测试卡：
+
+```text
+4242 4242 4242 4242
+```
+
+有效期填任意未来日期，例如 `12/34`；CVC 填任意 3 位数字。
+
+## 常用命令
+
+```bash
+# 后端语法检查
+python -m py_compile backend/main.py backend/ai_routes.py backend/auth_store.py backend/billing_routes.py
+
+# 前端生产构建
 cd frontend
 npm run build
 ```
 
-正式上线前请设置站点域名，生成 canonical、OG 绝对图片地址、sitemap 和 AI 可读资源中的规范 URL：
+## 目录结构
 
-```bash
-VITE_SITE_URL=https://your-domain.com
-```
-
-## 技术栈
-
-| 层级     | 技术                     | 说明                 |
-| -------- | ------------------------ | -------------------- |
-| 前端     | React 18 + Vite 5        | SPA 框架             |
-| 样式     | TailwindCSS 3            | 原子化 CSS           |
-| 图标     | Lucide React             | SVG 图标库           |
-| Markdown | react-markdown           | AI 输出渲染          |
-| 思维导图 | markmap                  | Markdown → 脑图      |
-| 后端     | Python FastAPI           | 异步 Web API         |
-| 下载引擎 | yt-dlp                   | 1000+ 平台支持       |
-| 抖音引擎 | httpx + iesdouyin API    | 无 Cookie 无水印下载 |
-| AI LLM   | DeepSeek Chat            | 摘要/对话生成        |
-| 字幕提取 | B站 dm/view API + yt-dlp | 多平台字幕获取       |
-| 进度推送 | SSE (Server-Sent Events) | 实时进度/流式输出    |
-| SEO/GEO | 预渲染 + JSON-LD + llms.txt | 搜索引擎和 AI 搜索可见性 |
-
-## API 接口
-
-| 接口                      | 方法      | 说明                         |
-| ------------------------- | --------- | ---------------------------- |
-| `/api/health`             | GET       | 健康检查                     |
-| `/api/parse`              | POST      | 解析视频 URL（自动识别平台） |
-| `/api/download`           | POST      | 发起下载任务                 |
-| `/api/progress/{task_id}` | GET (SSE) | 实时下载进度                 |
-| `/api/file/{task_id}`     | GET       | 获取已下载文件               |
-| `/api/thumbnail?url=`     | GET       | 封面图片代理                 |
-| `/api/test?url=`          | GET       | 诊断测试接口                 |
-| `/api/subtitle`           | POST      | 字幕/转录提取                |
-| `/api/summarize`          | POST(SSE) | AI 视频摘要（流式）          |
-| `/api/chat`               | POST(SSE) | AI 视频对话（流式）          |
-
-## 抖音下载原理
-
-基于 [rathodpratham-dev/douyin_video_downloader](https://github.com/rathodpratham-dev/douyin_video_downloader)（MIT 协议）的方案：
-
-1. **短链解析** — `v.douyin.com/xxx` → 302 重定向 → 获取真实 URL
-2. **提取 video_id** — 从 URL 路径/查询参数中提取
-3. **公开 API** — `https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids={id}`
-4. **去水印** — 将 `playwm` 替换为 `play` 即得无水印视频地址
-5. **Fallback** — API 失败时解析分享页 `window._ROUTER_DATA`，含 WAF 挑战自动破解
-
-## 项目结构
-
-```
+```text
 video-downloader/
-├── backend/
-│   ├── main.py               # FastAPI 主应用（视频解析/下载路由）
-│   ├── ai_routes.py          # AI 功能路由（字幕/总结/对话）
-│   ├── ai_service.py         # DeepSeek API 封装（流式输出）
-│   ├── subtitle_extractor.py # 字幕提取（B站 API + yt-dlp）
-│   ├── douyin_parser.py      # 抖音专用解析器
-│   ├── .env                  # 环境变量（DEEPSEEK_API_KEY）
-│   ├── requirements.txt      # Python 依赖
-│   └── downloads/            # 临时下载文件目录
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx           # 根组件
-│   │   ├── main.jsx          # 入口文件
-│   │   ├── entry-server.jsx  # 首页预渲染入口
-│   │   ├── index.css         # 全局样式
-│   │   ├── seo/
-│   │   │   └── metadata.js   # SEO/GEO 元数据与结构化数据生成
-│   │   └── components/
-│   │       ├── Header.jsx    # 导航栏
-│   │       ├── Hero.jsx      # 首页搜索区
-│   │       ├── VideoResult.jsx   # 视频信息 + 下载
-│   │       ├── AISummary.jsx     # AI 总结主面板
-│   │       ├── SummaryTab.jsx    # 摘要 Tab
-│   │       ├── OutlineTab.jsx    # 大纲 Tab
-│   │       ├── TranscriptTab.jsx # 转录 Tab
-│   │       ├── MindMapTab.jsx    # 思维导图 Tab
-│   │       ├── AIChatTab.jsx     # AI 对话 Tab
-│   │       ├── markdownStyles.jsx # Markdown 渲染样式
-│   │       ├── Platforms.jsx     # 支持平台展示
-│   │       ├── Features.jsx      # 功能特性
-│   │       ├── AIVisibility.jsx  # GEO/AI 搜索事实区
-│   │       ├── FAQ.jsx           # FAQ 内容与 FAQPage 对齐
-│   │       ├── Pricing.jsx       # 定价方案
-│   │       └── Footer.jsx        # 页脚
-│   ├── scripts/
-│   │   └── prerender.mjs     # 构建后首页预渲染脚本
-│   ├── public/
-│   │   ├── favicon.svg       # 网站图标
-│   │   ├── og-image.png      # 1200x630 社交分享图
-│   │   └── og-image.svg      # 分享图可编辑源
-│   ├── index.html
-│   ├── vite.config.js        # Vite 配置（API 代理 + SEO/GEO 构建资产）
-│   ├── tailwind.config.js    # Tailwind 主题扩展
-│   └── package.json
-├── docs/
-│   ├── requirements.md       # 需求文档
-│   ├── design.md             # 技术设计文档
-│   ├── seo-tdk.md            # SEO TDK 管理表
-│   ├── geo.md                # GEO 优化说明
-│   └── summary.md            # 项目总结文档
-├── start.bat                 # Windows 一键启动
-├── .gitignore
-└── README.md
+  backend/
+    main.py                # 视频解析、下载、进度、文件接口
+    ai_routes.py           # 字幕、AI 总结、AI 对话接口
+    ai_service.py          # DeepSeek 调用封装
+    auth_routes.py         # 注册、登录、退出、当前用户
+    auth_store.py          # SQLite 用户、会员、支付、AI 次数存储
+    billing_routes.py      # Stripe Checkout 与 Webhook
+    douyin_parser.py       # 抖音无水印解析
+    subtitle_extractor.py  # 字幕提取
+    requirements.txt
+  frontend/
+    src/
+      App.jsx
+      auth.jsx
+      components/
+        AISummary.jsx
+        AIChatTab.jsx
+        AuthModal.jsx
+        CheckoutReturn.jsx
+        Header.jsx
+        Pricing.jsx
+        aiTextSanitizer.js
+      seo/
+        metadata.js
+    package.json
+    vite.config.js
+  docs/
+    design.md
+    requirements.md
+    stripe-membership.md
+    summary.md
 ```
 
-## 已验证平台
+## 注意事项
 
-| 平台     | 下载 | 字幕提取 | 备注                        |
-| -------- | ---- | -------- | --------------------------- |
-| Bilibili | ✅   | ✅       | dm/view API 提取 CC/AI 字幕 |
-| 抖音     | ✅   | —        | 无水印下载，无需登录        |
-| YouTube  | ✅   | ✅       | yt-dlp 字幕提取             |
-
-## 环境要求
-
-- **Python** ≥ 3.9
-- **Node.js** ≥ 16
-- **FFmpeg**（音视频合并需要）
-- **DeepSeek API Key**（AI 功能，配置在 `backend/.env`）
-
-## 后续规划
-
-- [x] AI 视频摘要（DeepSeek LLM 流式生成）
-- [x] 字幕提取（B站 + YouTube + 通用平台）
-- [x] AI 对话（基于视频内容多轮问答）
-- [x] 思维导图可视化
-- [x] SEO/GEO 基础优化（预渲染、结构化数据、llms.txt、AI 上下文）
-- [ ] Whisper 语音转文字（无字幕视频兜底）
-- [ ] 字幕自动翻译
-- [ ] 批量下载（多 URL 队列）
-- [ ] 用户账户系统
-- [ ] 支付集成（会员订阅）
-- [ ] Docker 部署方案
-
-## 许可
-
-抖音解析模块参考 [douyin_video_downloader](https://github.com/rathodpratham-dev/douyin_video_downloader)（MIT License）。
+- 下载功能应遵守目标平台条款和版权法规，仅下载用户有权保存的内容。
+- 生产环境请使用 HTTPS，并将 Cookie `secure` 选项改为 `true`。
+- SQLite 适合当前单机 MVP；多人高并发或多实例部署时建议迁移到 PostgreSQL/MySQL。

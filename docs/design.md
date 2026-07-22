@@ -1,271 +1,168 @@
-# SaveAny 万能视频下载器 - 方案设计文档
+# SaveAny 技术方案
 
-## 一、技术架构
+## 架构概览
 
-```
-┌─────────────────────────────────┐
-│         用户浏览器 (PC/手机)       │
-└──────────┬──────────────────────┘
-           │ HTTP
-           ▼
-┌─────────────────────────────────┐
-│   Frontend (React + Vite)        │
-│   - TailwindCSS 样式             │
-│   - Lucide Icons 图标            │
-│   - SSE 进度监听                 │
-│   - 端口: 3000                   │
-│   - Vite Proxy → Backend         │
-└──────────┬──────────────────────┘
-           │ /api/* 代理
-           ▼
-┌─────────────────────────────────┐
-│   Backend (Python FastAPI)       │
-│   - RESTful API                  │
-│   - SSE 进度推送                 │
-│   - 端口: 8000                   │
-│   - 内存任务管理                 │
-│   - 临时文件存储                 │
-│   - 封面图片代理                 │
-└──────────┬──────────────────────┘
-           │ 智能路由
-     ┌─────┴──────┐
-     ▼            ▼
-┌──────────┐ ┌──────────────────┐
-│ 抖音专用  │ │   yt-dlp 通用     │
-│ 解析器    │ │   下载引擎        │
-│ (httpx)  │ │   1000+ 平台      │
-│ 无需Cookie│ │   格式/清晰度选择 │
-│ HTML解析  │ │   音视频合并      │
-│ 直链下载  │ │   进度回调        │
-└──────────┘ └──────────────────┘
+```text
+Browser
+  |
+  | HTTP / SSE
+  v
+Frontend: React + Vite + TailwindCSS
+  |
+  | /api/* proxy
+  v
+Backend: FastAPI
+  |
+  |-- yt-dlp: 通用视频解析与下载
+  |-- douyin_parser: 抖音无水印解析
+  |-- subtitle_extractor: 字幕提取
+  |-- DeepSeek API: AI 总结与对话
+  |-- SQLite: 用户、会员、支付、AI 次数
+  |-- Stripe: Checkout 与 Webhook
 ```
 
-## 二、技术选型
+## 后端设计
 
-### 2.1 前端
+### FastAPI 主应用
 
-| 技术         | 版本 | 用途     |
-| ------------ | ---- | -------- |
-| React        | 18.x | UI 框架  |
-| Vite         | 5.x  | 构建工具 |
-| TailwindCSS  | 3.x  | 样式框架 |
-| Lucide React | 最新 | 图标库   |
+`backend/main.py` 负责：
 
-**选型理由**:
+- `/api/health` 健康检查。
+- `/api/parse` 解析视频信息。
+- `/api/download` 创建下载任务。
+- `/api/progress/{task_id}` SSE 推送下载进度。
+- `/api/file/{task_id}` 返回下载文件。
+- 挂载认证、支付、AI 路由。
 
-- React 生态成熟，组件化开发高效
-- Vite 开发体验好，HMR 快
-- TailwindCSS 原子化 CSS，快速还原设计稿
-- 参考网站也使用 Tailwind 体系
+### 认证
 
-### 2.2 后端
+认证由 `auth_routes.py` 和 `auth_store.py` 实现：
 
-| 技术    | 版本    | 用途         |
-| ------- | ------- | ------------ |
-| Python  | 3.9+    | 运行时       |
-| FastAPI | 0.115.x | Web 框架     |
-| uvicorn | 0.30.x  | ASGI 服务器  |
-| yt-dlp  | 2024.x  | 视频下载引擎 |
+- 邮箱唯一注册。
+- 密码使用 PBKDF2 + salt 哈希保存。
+- 登录后创建随机 session token。
+- 浏览器只保存 HttpOnly Cookie。
+- `/api/auth/me` 返回用户公开信息、会员状态和 AI 免费次数。
 
-**选型理由**:
+### 会员
 
-- yt-dlp 是 Python 库，原生调用最简单
-- FastAPI 轻量、自带 API 文档、支持异步
-- 无数据库，任务存内存，文件临时存储
+会员状态保存在 `memberships` 表：
 
-### 2.3 为什么用 yt-dlp
+- `status=active` 且 `current_period_end > now` 视为有效会员。
+- 月度计划增加 30 天。
+- 年度计划增加 365 天。
+- 如果当前仍是会员，则从当前到期时间继续累加。
 
-- GitHub 180k+ Star，社区活跃
-- 支持 1000+ 视频平台
-- 可作为 Python 库内嵌调用（`from yt_dlp import YoutubeDL`）
-- `extract_info()` 获取元数据，`download()` 执行下载
-- 自带格式选择、音视频合并、进度回调
+### Stripe 支付
 
-## 三、API 设计
+`billing_routes.py` 提供：
 
-### 3.1 视频解析
+- `GET /api/billing/plans` 获取套餐。
+- `POST /api/billing/checkout` 创建 Checkout Session。
+- `POST /api/billing/sync-checkout` 支付完成后的兜底同步。
+- `POST /api/billing/webhook` 接收 Stripe Webhook。
 
-```
-POST /api/parse
-Body: { "url": "https://www.youtube.com/watch?v=xxx" }
-Response: {
-  "title": "视频标题",
-  "thumbnail": "封面URL",
-  "duration": 120,
-  "uploader": "上传者",
-  "view_count": 10000,
-  "extractor": "youtube",
-  "quality_options": [
-    { "label": "最佳画质 (自动)", "format_id": "best", ... },
-    { "label": "1080p (mp4)", "format_id": "137", ... },
-    ...
-  ]
-}
-```
+关键策略：
 
-### 3.2 发起下载
+- 使用 Stripe Checkout `mode="payment"`，一次性支付。
+- 使用 Price ID，不在代码中写死价格对象。
+- Webhook 校验签名。
+- `stripe_events` 表按 event id 去重。
+- `checkout_sessions` 表按 Session 去重，避免重复处理。
 
-```
-POST /api/download
-Body: { "url": "...", "format_id": "best" }
-Response: { "task_id": "abc12345" }
-```
+### AI 免费次数
 
-### 3.3 下载进度 (SSE)
+免费次数由 `ai_usage` 和 `ai_usage_resources` 两张表控制。
 
-```
-GET /api/progress/{task_id}
-Response: SSE stream
-  data: { "status": "downloading", "progress": 45.2 }
-  data: { "status": "done", "progress": 100 }
-```
+流程：
 
-### 3.4 获取文件
+1. 前端先提取字幕。
+2. 字幕存在时才调用 `/api/summarize`。
+3. 后端在生成流开始前预扣 1 次。
+4. 前端收到 `/api/summarize` 响应后立即刷新用户状态，马上展示剩余次数。
+5. 如果 AI 生成过程抛错，后端调用 `refund_ai_quota` 回滚本次预扣。
+6. 同一视频资源通过 `resource_key` 去重，重复请求不重复扣。
+7. 第 4 个不同视频会在后端被 403 拦截。
 
-```
-GET /api/file/{task_id}
-Response: 文件流 (application/octet-stream)
-```
+### AI 输出清洗
 
-## 四、页面结构设计
+LLM 可能不严格遵守输出格式。前端在 `aiTextSanitizer.js` 做渲染前清洗：
 
-### 4.1 首页（单页应用）
+- 清理 `===SUMMARY===`、`===OUTLINE===`、`===MINDMAP===`。
+- 清理残缺的 `**`、多余 `===`、异常 `###`。
+- 清理 Markdown 代码块围栏。
+- 兼容中文分段标题。
 
-```
-┌──────────────────────────────────┐
-│  Header: Logo + Nav + 开通会员    │
-├──────────────────────────────────┤
-│  Hero 区域:                       │
-│  - 支持1000+平台 Badge            │
-│  - "万能视频下载器" 大标题          │
-│  - 副标题描述                     │
-│  - URL 输入框 + 解析按钮          │
-│  - 快捷试用按钮                   │
-├──────────────────────────────────┤
-│  同屏结果区 (解析后出现):          │
-│  - 左栏：封面 + 标题 + 元信息      │
-│  - 左栏：常驻画质选择栏            │
-│  - 左栏：下载按钮 + 进度条         │
-│  - 右栏：AI 总结 Tab 面板          │
-│  - 解析完成后自动提取字幕并总结    │
-│  - 桌面端固定高度，内容内部滚动    │
-├──────────────────────────────────┤
-│  平台展示区:                      │
-│  - 12个主流平台图标网格           │
-├──────────────────────────────────┤
-│  功能特性区:                      │
-│  - 6个特性卡片 (2x3 网格)         │
-├──────────────────────────────────┤
-│  定价区:                          │
-│  - 3列定价卡片 (免费/专业/年度)    │
-│  - 中间卡片突出显示               │
-├──────────────────────────────────┤
-│  Footer: 版权信息 + 链接          │
-└──────────────────────────────────┘
-```
+## 前端设计
 
-### 4.2 配色方案
+### 认证状态
 
-| 用途     | 颜色                     | 说明             |
-| -------- | ------------------------ | ---------------- |
-| 页面背景 | `#0F0B1E` → `#1A1145`    | 深色渐变，高级感 |
-| 主强调色 | `#7C3AED` → `#3B82F6`    | 紫蓝渐变，科技感 |
-| 金色点缀 | `#F59E0B`                | VIP/付费相关     |
-| 文字白色 | `#FFFFFF`                | 标题/重要文字    |
-| 文字灰色 | `#9CA3AF`                | 次要文字         |
-| 卡片背景 | `rgba(255,255,255,0.05)` | 玻璃拟态         |
-| 卡片边框 | `rgba(255,255,255,0.1)`  | 微妙分隔         |
+`frontend/src/auth.jsx` 提供全局认证上下文：
 
-### 4.3 AI 输出解析与兜底策略
+- `user`
+- `refreshUser`
+- `login`
+- `register`
+- `logout`
+- `authModalOpen`
 
-AI 总结由 `/api/summarize` 以 SSE 方式流式返回，前端 `AISummary.jsx` 负责将完整响应拆成摘要、大纲和思维导图三段。由于 LLM 不一定严格遵守同一种分隔符格式，前端解析必须保持容错：
+### Header
 
-- 优先识别标准分隔符：`===SUMMARY===`、`===OUTLINE===`、`===MINDMAP===`
-- 兼容带空格分隔符：`=== SUMMARY ===`、`=== OUTLINE ===`、`=== MINDMAP ===`
-- 兼容标题式分隔符：`## SUMMARY`、`## OUTLINE`、`## MINDMAP`
-- 兼容中文分段标题：`摘要`、`大纲`、`章节大纲`、`思维导图`
-- Markdown 渲染前需清理分隔符残留，并把 `###标题` 规范为 `### 标题`
-- 如果流式结束后摘要段仍为空，但大纲/转录存在，应从完整响应中截取大纲之前的内容作为兜底摘要
-- 空摘要状态必须提供“重新生成总结”入口，不能再显示需要点击已隐藏按钮的提示
+`Header.jsx` 展示：
 
-这个策略用于避免“自动总结结束后摘要 Tab 为空，但大纲、转录正常”的状态断层。
+- 免费/VIP 铭牌。
+- 用户头像。
+- 下拉菜单。
+- 会员到期时间。
+- 退出登录按钮。
+- VIP 用户隐藏“开通会员”按钮。
 
-## 五、项目结构
+### AI 面板
 
-```
-video-downloader/
-├── docs/                    # 文档
-│   ├── requirements.md      # 需求分析
-│   └── design.md            # 方案设计
-├── frontend/                # 前端
-│   ├── src/
-│   │   ├── main.jsx         # 入口
-│   │   ├── App.jsx          # 主组件
-│   │   ├── index.css         # 全局样式
-│   │   └── components/
-│   │       ├── Header.jsx    # 顶部导航
-│   │       ├── Hero.jsx      # Hero区 + 搜索框
-│   │       ├── VideoResult.jsx # 视频结果卡片
-│   │       ├── AISummary.jsx  # AI总结主容器(Tab切换)
-│   │       ├── SummaryTab.jsx # AI摘要展示
-│   │       ├── OutlineTab.jsx # 章节大纲展示
-│   │       ├── TranscriptTab.jsx # 转录文本展示
-│   │       ├── MindMapTab.jsx # 思维导图(markmap)
-│   │       ├── AIChatTab.jsx  # AI对话界面
-│   │       ├── markdownStyles.js # Markdown渲染样式
-│   │       ├── Platforms.jsx  # 支持平台展示
-│   │       ├── Features.jsx   # 功能特性
-│   │       ├── Pricing.jsx    # 定价方案
-│   │       └── Footer.jsx     # 页脚
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js        # Vite配置(含API代理)
-│   ├── tailwind.config.js    # TailwindCSS配置
-│   └── postcss.config.js
-├── backend/                  # 后端
-│   ├── main.py               # FastAPI 应用
-│   ├── ai_routes.py          # AI功能路由(字幕/总结/对话)
-│   ├── ai_service.py         # DeepSeek API封装
-│   ├── subtitle_extractor.py # 字幕提取模块
-│   ├── douyin_parser.py      # 抖音专用解析器
-│   ├── setup_env.py          # 环境初始化+启动
-│   ├── .env                  # 环境变量(API Key)
-│   ├── requirements.txt      # Python 依赖
-│   └── downloads/            # 临时下载目录
-├── start.bat                 # Windows 一键启动
-└── README.md                 # 项目说明
+`AISummary.jsx` 编排 AI 流程：
+
+1. 检查登录状态。
+2. 同步最新用户权益。
+3. 提取字幕。
+4. 调用 `/api/summarize`。
+5. 收到响应后立即刷新剩余次数。
+6. 读取 SSE 流，拆分摘要、大纲、思维导图。
+7. 渲染 Summary、Outline、Transcript、Mindmap、AI Chat 五个 Tab。
+
+### 会员套餐
+
+`Pricing.jsx` 展示三列套餐：
+
+- 免费版：下载免费，每日 3 次 AI 总结。
+- 月度会员：9.90 元，30 天。
+- 年度会员：68 元，365 天。
+
+套餐卡片支持 hover 高亮：鼠标移入任意卡片时当前卡片高亮；鼠标移出后默认高亮中间卡片。
+
+## 环境变量
+
+后端 `.env`：
+
+```bash
+DEEPSEEK_API_KEY=your_deepseek_key
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_PRICE_MONTHLY=price_xxx
+STRIPE_PRICE_YEARLY=price_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+FRONTEND_URL=http://localhost:3000
 ```
 
-## 六、后续扩展计划
+前端生产构建可选：
 
-### Phase 2 - 增值功能
+```bash
+VITE_SITE_URL=https://your-domain.com
+```
 
-- [ ] 批量下载（多 URL 队列）
-- [ ] 音频提取（MP3 格式）
-- [ ] 字幕下载
+## 生产注意事项
 
-### Phase 3 - 商业化
-
-- [ ] 用户注册/登录系统
-- [ ] 付费系统集成（微信/支付宝）
-- [ ] 下载次数/画质限制
-- [ ] 下载历史记录
-
-### Phase 4 - AI 增值（已实现）
-
-- [x] 视频字幕提取（平台字幕 + 自动生成字幕）
-- [x] 视频 AI 摘要总结（DeepSeek LLM）
-- [x] 章节大纲生成（按时间线分段）
-- [x] 思维导图可视化（markmap）
-- [x] AI 对话（基于视频内容多轮聊天）
-- [x] 转录文本展示（带时间戳）
-- [ ] 字幕自动翻译
-- [ ] 智能推荐画质
-- [ ] Whisper 语音转文字（无字幕视频兜底）
-
-### Phase 5 - 基础设施
-
-- [ ] 数据库集成（用户数据持久化）
-- [ ] Redis 缓存（热门视频缓存）
-- [ ] 部署方案（Docker + Nginx）
-- [ ] CDN 加速
+- Secret Key 不得进入 Git。
+- 数据库、下载目录、构建产物不得提交。
+- 使用 HTTPS。
+- Cookie `secure` 应在生产环境设置为 `true`。
+- 多实例部署时不能继续依赖本地 SQLite，需要迁移到中心化数据库。
+- Stripe Webhook 的正式环境 secret 与测试环境 secret 必须分开。

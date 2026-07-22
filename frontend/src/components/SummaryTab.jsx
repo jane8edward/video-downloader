@@ -1,8 +1,11 @@
 import { Loader2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { markdownComponents } from './markdownStyles.jsx'
+import { sanitizeAiMarkdown } from './aiTextSanitizer.js'
 
 export default function SummaryTab({ content, isLoading, onRetry }) {
+  const displayContent = sanitizeAiMarkdown(content)
+
   if (isLoading && !content) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -12,7 +15,7 @@ export default function SummaryTab({ content, isLoading, onRetry }) {
     )
   }
 
-  if (!content) {
+  if (!displayContent) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
         <p>本次没有解析到摘要内容。</p>
@@ -31,7 +34,7 @@ export default function SummaryTab({ content, isLoading, onRetry }) {
 
   return (
     <div className="ai-markdown">
-      <Markdown components={markdownComponents}>{content}</Markdown>
+      <Markdown components={markdownComponents}>{displayContent}</Markdown>
       {isLoading && (
         <span className="inline-block w-2 h-5 bg-purple-400 animate-pulse ml-1 align-middle rounded-sm" />
       )}
